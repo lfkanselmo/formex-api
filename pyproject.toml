@@ -1,0 +1,40 @@
+[project]
+name = "formex-api"
+version = "0.1.0"
+description = "Motor de generacion masiva de documentos"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = []
+
+[dependency-groups]
+dev = [
+    "mypy>=1.11",
+    "pytest>=8.3",
+    "pytest-cov>=5.0",
+    "ruff>=0.6",
+]
+
+[tool.mypy]
+strict = true
+files = ["src"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-m 'not integration' --cov=src/domain --cov-report=term-missing --cov-fail-under=100"
+markers = [
+    "integration: requiere infraestructura real",
+]
+
+[tool.coverage.run]
+branch = true
+
+[tool.uv]
+package = false
