@@ -8,10 +8,29 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: formex
+          POSTGRES_PASSWORD: formex
+          POSTGRES_DB: formex
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U formex"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      SECRET_KEY: ci-test-secret-key
+      DATABASE_URL: postgresql+asyncpg://formex:formex@localhost:5432/formex
     steps:
       - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v9.0.0
       - run: uv sync
       - run: uv run ruff check .
       - run: uv run mypy src
+      - run: uv run alembic upgrade head
       - run: uv run pytest
+      - run: uv run pytest -m integration --no-cov

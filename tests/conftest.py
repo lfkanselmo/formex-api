@@ -1,0 +1,3 @@
+from src.infrastructure.windows_event_loop import ensure_windows_selector_event_loop
+
+ensure_windows_selector_event_loop()
