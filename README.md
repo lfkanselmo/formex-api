@@ -7,9 +7,10 @@ ligero, multiusuario/multi-tenant desde el inicio. Ver
 [`SAD_Formex_Motor_Generacion_Documentos.md`](../SAD_Formex_Motor_Generacion_Documentos.md)
 para el diseño completo.
 
-Estado actual: **M2** — autenticación JWT (`/auth/register`, `/auth/login`,
-`/auth/refresh`, `/auth/me`) con aislamiento por `organization_id`, persistencia
-en PostgreSQL vía SQLAlchemy async + Alembic. 100% de cobertura en `src/domain`.
+Estado actual: **M3** — `DocxtplRenderEngine` (marcadores simples y tablas
+dinámicas), `OpenpyxlRowParser` y `BatchRowValidator` (RNF-04: filas inválidas
+se reportan sin abortar la carga completa). M2 (auth JWT + Postgres +
+aislamiento por `organization_id`) completo. 100% de cobertura en `src/domain`.
 
 ## Desarrollo
 
