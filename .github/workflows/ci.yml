@@ -22,9 +22,30 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 5
+      minio:
+        image: bitnami/minio:latest
+        env:
+          MINIO_ROOT_USER: formex
+          MINIO_ROOT_PASSWORD: formex123
+        ports:
+          - 9000:9000
+        options: >-
+          --health-cmd "curl -f http://localhost:9000/minio/health/live"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+      gotenberg:
+        image: gotenberg/gotenberg:8
+        ports:
+          - 3000:3000
     env:
       SECRET_KEY: ci-test-secret-key
-      DATABASE_URL: postgresql+asyncpg://formex:formex@localhost:5432/formex
+      DATABASE_URL: postgresql+psycopg://formex:formex@localhost:5432/formex
+      GOTENBERG_URL: http://localhost:3000
+      S3_ENDPOINT_URL: http://localhost:9000
+      S3_ACCESS_KEY: formex
+      S3_SECRET_KEY: formex123
+      S3_BUCKET: formex
     steps:
       - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v9.0.0
@@ -32,5 +53,9 @@ jobs:
       - run: uv run ruff check .
       - run: uv run mypy src
       - run: uv run alembic upgrade head
+      - name: Create MinIO bucket
+        run: |
+          docker run --rm --network host minio/mc:latest \
+            sh -c "mc alias set local http://localhost:9000 formex formex123 && mc mb -p local/formex"
       - run: uv run pytest
       - run: uv run pytest -m integration --no-cov
