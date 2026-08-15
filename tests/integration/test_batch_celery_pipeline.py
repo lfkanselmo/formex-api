@@ -10,6 +10,7 @@ from uuid import UUID
 import pytest
 from docx import Document
 from openpyxl import Workbook
+from src.application.use_cases.retry_failed_documents import RetryFailedDocumentsUseCase
 from src.application.use_cases.submit_batch import SubmitBatchUseCase
 from src.application.use_cases.upload_template import UploadTemplateUseCase
 from src.domain.generation.models import BatchStatus, DocumentStatus, GenerationBatch
@@ -210,3 +211,60 @@ async def test_submit_batch_with_invalid_rows_completes_with_errors(
     assert final_batch.status is BatchStatus.COMPLETED_WITH_ERRORS
     assert final_batch.completed_rows == 1
     assert final_batch.failed_rows == 1
+
+
+async def test_retry_reprocesses_failed_rows_through_celery(
+    clean_database: None, celery_worker: None
+) -> None:
+    storage = S3DocumentStorage(
+        endpoint_url=settings.s3_endpoint_url,
+        access_key=settings.s3_access_key,
+        secret_key=settings.s3_secret_key,
+        bucket=settings.s3_bucket,
+    )
+
+    async with async_session_factory() as session:
+        organization = Organization.create(name="Torres & Cia", created_at=datetime.now(UTC))
+        await PostgresOrganizationRepository(session).add(organization)
+
+        upload_use_case = UploadTemplateUseCase(
+            PostgresTemplateRepository(session), storage, DocxtplRenderEngine()
+        )
+        template = await upload_use_case.execute(
+            organization.id, "Contrato.docx", _build_template_docx_bytes()
+        )
+
+        rows = [{"arrendatario": "Maria Gonzalez"}]
+        submit_use_case = SubmitBatchUseCase(
+            PostgresTemplateRepository(session),
+            PostgresBatchRepository(session),
+            OpenpyxlRowParser(),
+            CeleryBatchDispatcher(),
+        )
+        batch = await submit_use_case.execute(
+            organization.id, template.id, _build_excel_bytes(rows)
+        )
+
+    failed_batch = await _wait_for_batch(organization.id, batch.id)
+    assert failed_batch.status is BatchStatus.FAILED
+    assert failed_batch.failed_rows == 1
+
+    async with async_session_factory() as session:
+        retry_use_case = RetryFailedDocumentsUseCase(
+            PostgresBatchRepository(session), CeleryBatchDispatcher()
+        )
+        await retry_use_case.execute(organization.id, batch.id)
+
+    retried_batch = await _wait_for_batch(organization.id, batch.id)
+
+    assert retried_batch.status is BatchStatus.COMPLETED
+    assert retried_batch.completed_rows == 1
+    assert retried_batch.failed_rows == 0
+
+    async with async_session_factory() as session:
+        documents = await PostgresBatchRepository(session).list_documents(
+            batch.id, organization.id
+        )
+    assert documents[0].output_key is not None
+    pdf_bytes = await storage.load(documents[0].output_key)
+    assert pdf_bytes.startswith(b"%PDF-")

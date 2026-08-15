@@ -7,20 +7,34 @@ ligero, multiusuario/multi-tenant desde el inicio. Ver
 [`SAD_Formex_Motor_Generacion_Documentos.md`](../SAD_Formex_Motor_Generacion_Documentos.md)
 para el diseño completo.
 
-Estado actual: **M5** — Celery + Redis con paralelismo real por fila (`chord`
-de finalización recomputando el estado agregado del lote) y endpoints FastAPI
-completos: `POST /templates` (sube y detecta marcadores), `GET /templates`,
-`POST /templates/{id}/batches` (valida filas, encola generación),
-`GET /batches`, `GET /batches/{id}`, `GET /batches/{id}/documents`. Verificado
-de punta a punta con un servidor y un worker reales generando PDFs. M2-M4
-(auth JWT + Postgres, render + validación de Excel, PDF real vía Gotenberg +
-MinIO) completos. 100% de cobertura en `src/domain`.
+Estado actual: **M6** — reintento de filas fallidas (`POST /batches/{id}/retry`)
+y descarga en ZIP de los PDFs completados (`GET /batches/{id}/download`).
+`formex-api` y su worker de Celery ya corren dockerizados (`docker/Dockerfile`)
+junto al resto de la infraestructura — stack completo verificado de punta a
+punta vía `docker compose up`, generando y descargando PDFs reales a través de
+la red interna de Docker. M2-M5 (auth JWT multi-tenant, render + validación de
+Excel, PDF real vía Gotenberg + MinIO, paralelismo real por fila vía Celery)
+completos. 100% de cobertura en `src/domain`.
 
-## Desarrollo
+## Levantar el stack completo con Docker
 
-Requiere el stack de infraestructura arriba (`docker compose up -d` desde la
-raíz del proyecto — Postgres, MinIO, Gotenberg y Redis) y un `.env` local
-(copiar `.env.example`, generar `SECRET_KEY` con
+Desde la raíz del proyecto (`formex/`, no `formex-api/`):
+
+```bash
+export SECRET_KEY=$(python -c "import secrets; print(secrets.token_hex(32))")
+docker compose up -d --build
+```
+
+Levanta Postgres, MinIO, Gotenberg, Redis, la API (`:8000`, corre las
+migraciones al iniciar) y el worker de Celery — todos comunicándose por la red
+interna de Docker (`postgres`, `redis`, `minio`, `gotenberg` como hostnames,
+no `localhost`).
+
+## Desarrollo local (sin Docker para la app)
+
+Requiere el stack de infraestructura arriba (`docker compose up -d postgres
+minio minio-init gotenberg redis` desde la raíz del proyecto) y un `.env`
+local (copiar `.env.example`, generar `SECRET_KEY` con
 `python -c "import secrets; print(secrets.token_hex(32))"`).
 
 ```bash
@@ -38,4 +52,5 @@ uv run celery -A src.infrastructure.tasks.celery_app worker --pool=solo --loglev
 `ProactorEventLoop`, que es la política de asyncio por defecto en Windows —
 por eso `src/main.py` fija `WindowsSelectorEventLoopPolicy` y arranca uvicorn
 sin pasar por `uvicorn.run()` (que revierte esa política). No aplica en
-Docker/Linux, donde este ajuste es un no-op.
+Docker/Linux, donde este ajuste es un no-op — dentro del contenedor el
+`Dockerfile` arranca uvicorn directamente por CLI.

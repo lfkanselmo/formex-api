@@ -185,3 +185,54 @@ def test_list_batches_without_token_returns_401(client: TestClient) -> None:
     response = client.get("/api/v1/batches")
 
     assert response.status_code == 401
+
+
+def test_retry_unknown_batch_returns_404(client: TestClient) -> None:
+    headers = _auth_headers(client, "Restrepo & Asociados", "ana@restrepo.co")
+    fake_batch_id = "00000000-0000-0000-0000-000000000000"
+
+    response = client.post(f"/api/v1/batches/{fake_batch_id}/retry", headers=headers)
+
+    assert response.status_code == 404
+
+
+def test_retry_with_nothing_failed_is_a_noop(client: TestClient) -> None:
+    headers = _auth_headers(client, "Restrepo & Asociados", "ana@restrepo.co")
+    template = _upload_template(client, headers)
+    rows = [{"arrendatario": "Maria Gonzalez", "canon_mensual": "1500000"}]
+    batch = client.post(
+        f"/api/v1/templates/{template['id']}/batches",
+        headers=headers,
+        files={"file": ("datos.xlsx", _excel_bytes(rows), "application/octet-stream")},
+    ).json()
+
+    response = client.post(f"/api/v1/batches/{batch['id']}/retry", headers=headers)
+
+    assert response.status_code == 200
+    assert response.json()["failed_rows"] == 0
+
+
+def test_download_unknown_batch_returns_404(client: TestClient) -> None:
+    headers = _auth_headers(client, "Restrepo & Asociados", "ana@restrepo.co")
+    fake_batch_id = "00000000-0000-0000-0000-000000000000"
+
+    response = client.get(f"/api/v1/batches/{fake_batch_id}/download", headers=headers)
+
+    assert response.status_code == 404
+
+
+def test_download_batch_returns_a_valid_zip(client: TestClient) -> None:
+    headers = _auth_headers(client, "Restrepo & Asociados", "ana@restrepo.co")
+    template = _upload_template(client, headers)
+    rows = [{"arrendatario": "Maria Gonzalez", "canon_mensual": "1500000"}]
+    batch = client.post(
+        f"/api/v1/templates/{template['id']}/batches",
+        headers=headers,
+        files={"file": ("datos.xlsx", _excel_bytes(rows), "application/octet-stream")},
+    ).json()
+
+    response = client.get(f"/api/v1/batches/{batch['id']}/download", headers=headers)
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "application/zip"
+    assert f'lote-{batch["id"]}.zip' in response.headers["content-disposition"]

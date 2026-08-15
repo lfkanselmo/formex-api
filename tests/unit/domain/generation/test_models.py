@@ -159,3 +159,22 @@ def test_document_mark_failed_sets_error_message() -> None:
     document = _build_document().mark_failed("Fila inválida: falta canon_mensual")
     assert document.status is DocumentStatus.FAILED
     assert document.error_message == "Fila inválida: falta canon_mensual"
+
+
+def test_document_retry_resets_to_pending_and_clears_error_and_output() -> None:
+    failed = _build_document().mark_failed("Fila inválida: falta canon_mensual")
+
+    retried = failed.retry()
+
+    assert retried.status is DocumentStatus.PENDING
+    assert retried.error_message is None
+    assert retried.output_key is None
+
+
+def test_document_retry_clears_previous_output_key() -> None:
+    completed = _build_document().mark_completed("batches/1/0.pdf")
+
+    retried = completed.retry()
+
+    assert retried.status is DocumentStatus.PENDING
+    assert retried.output_key is None

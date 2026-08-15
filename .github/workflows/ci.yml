@@ -69,3 +69,5 @@ jobs:
             sh -c "mc alias set local http://localhost:9000 formex formex123 && mc mb -p local/formex"
       - run: uv run pytest
       - run: uv run pytest -m integration --no-cov
+      - name: Build Docker image
+        run: docker build -f docker/Dockerfile -t formex-api .

@@ -157,3 +157,8 @@ class GeneratedDocument:
 
     def mark_failed(self, error_message: str) -> GeneratedDocument:
         return replace(self, status=DocumentStatus.FAILED, error_message=error_message)
+
+    def retry(self) -> GeneratedDocument:
+        return replace(
+            self, status=DocumentStatus.PENDING, output_key=None, error_message=None
+        )

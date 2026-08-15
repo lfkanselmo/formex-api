@@ -1,8 +1,17 @@
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, status
+from fastapi.responses import Response
 
-from src.infrastructure.api.dependencies import BatchRepoDep, CurrentClaimsDep
+from src.application.use_cases.build_batch_zip import BuildBatchZipUseCase
+from src.application.use_cases.retry_failed_documents import RetryFailedDocumentsUseCase
+from src.domain.generation.exceptions import BatchNotFoundError
+from src.infrastructure.api.dependencies import (
+    BatchDispatcherDep,
+    BatchRepoDep,
+    CurrentClaimsDep,
+    DocumentStorageDep,
+)
 from src.infrastructure.api.v1.batch_schemas import BatchOut, DocumentOut
 
 router = APIRouter(prefix="/batches", tags=["batches"])
@@ -33,3 +42,37 @@ async def list_documents(
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Batch not found")
     documents = await batch_repository.list_documents(batch_id, claims.organization_id)
     return [DocumentOut.from_domain(document) for document in documents]
+
+
+@router.post("/{batch_id}/retry", response_model=BatchOut)
+async def retry_failed_documents(
+    batch_id: UUID,
+    claims: CurrentClaimsDep,
+    batch_repository: BatchRepoDep,
+    dispatcher: BatchDispatcherDep,
+) -> BatchOut:
+    use_case = RetryFailedDocumentsUseCase(batch_repository, dispatcher)
+    try:
+        batch = await use_case.execute(claims.organization_id, batch_id)
+    except BatchNotFoundError as error:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, str(error)) from error
+    return BatchOut.from_domain(batch)
+
+
+@router.get("/{batch_id}/download")
+async def download_batch(
+    batch_id: UUID,
+    claims: CurrentClaimsDep,
+    batch_repository: BatchRepoDep,
+    storage: DocumentStorageDep,
+) -> Response:
+    use_case = BuildBatchZipUseCase(batch_repository, storage)
+    try:
+        content = await use_case.execute(claims.organization_id, batch_id)
+    except BatchNotFoundError as error:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, str(error)) from error
+    return Response(
+        content=content,
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="lote-{batch_id}.zip"'},
+    )
