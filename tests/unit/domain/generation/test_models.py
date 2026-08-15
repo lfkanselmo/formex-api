@@ -73,6 +73,31 @@ def test_ensure_columns_cover_placeholders_passes_when_covered() -> None:
     template.ensure_columns_cover_placeholders(["arrendatario", "fecha_inicio", "canon_mensual"])
 
 
+def test_missing_values_detects_blank_cell() -> None:
+    template = _build_template()
+    row = {"arrendatario": "Maria Gonzalez", "fecha_inicio": "2026-09-01", "canon_mensual": ""}
+
+    assert template.missing_values(row) == frozenset({"canon_mensual"})
+
+
+def test_missing_values_detects_absent_key_as_blank() -> None:
+    template = _build_template()
+    row = {"arrendatario": "Maria Gonzalez", "fecha_inicio": "2026-09-01"}
+
+    assert template.missing_values(row) == frozenset({"canon_mensual"})
+
+
+def test_missing_values_empty_when_every_placeholder_has_a_value() -> None:
+    template = _build_template()
+    row = {
+        "arrendatario": "Maria Gonzalez",
+        "fecha_inicio": "2026-09-01",
+        "canon_mensual": "1500000",
+    }
+
+    assert template.missing_values(row) == frozenset()
+
+
 def test_batch_create_starts_pending() -> None:
     batch = _build_batch()
     assert batch.status is BatchStatus.PENDING

@@ -59,6 +59,15 @@ class Template:
         if missing:
             raise MissingPlaceholdersError(missing)
 
+    def missing_values(self, row: dict[str, str]) -> frozenset[str]:
+        # A spreadsheet's columns are uniform across every row, so a row is
+        # only ever *individually* invalid by leaving a required cell blank
+        # — not by lacking the column outright (missing_placeholders/
+        # ensure_columns_cover_placeholders cover that file-wide case).
+        return frozenset(
+            placeholder for placeholder in self.placeholders if not row.get(placeholder, "").strip()
+        )
+
 
 @dataclass(frozen=True, slots=True)
 class GenerationBatch:

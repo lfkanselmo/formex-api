@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     s3_access_key: str = "formex"
     s3_secret_key: str = "formex123"
     s3_bucket: str = "formex"
+    redis_url: str = "redis://localhost:6379/0"
 
 
 settings = Settings()  # type: ignore[call-arg]

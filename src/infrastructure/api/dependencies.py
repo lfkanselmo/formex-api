@@ -7,13 +7,21 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.application.ports.token_service import AccessTokenClaims
 from src.domain.identity.exceptions import InvalidTokenError
 from src.infrastructure.config import settings
+from src.infrastructure.parsing.openpyxl_row_parser import OpenpyxlRowParser
 from src.infrastructure.persistence.database import get_session
+from src.infrastructure.persistence.postgres_batch_repository import PostgresBatchRepository
 from src.infrastructure.persistence.postgres_organization_repository import (
     PostgresOrganizationRepository,
 )
+from src.infrastructure.persistence.postgres_template_repository import (
+    PostgresTemplateRepository,
+)
 from src.infrastructure.persistence.postgres_user_repository import PostgresUserRepository
+from src.infrastructure.rendering.docxtpl_render_engine import DocxtplRenderEngine
 from src.infrastructure.security.jwt_service import JwtTokenService
 from src.infrastructure.security.password_hasher import Argon2PasswordHasher
+from src.infrastructure.storage.s3_document_storage import S3DocumentStorage
+from src.infrastructure.tasks.celery_batch_dispatcher import CeleryBatchDispatcher
 
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
 
@@ -30,6 +38,45 @@ OrganizationRepoDep = Annotated[
     PostgresOrganizationRepository, Depends(get_organization_repository)
 ]
 UserRepoDep = Annotated[PostgresUserRepository, Depends(get_user_repository)]
+
+
+def get_template_repository(session: SessionDep) -> PostgresTemplateRepository:
+    return PostgresTemplateRepository(session)
+
+
+def get_batch_repository(session: SessionDep) -> PostgresBatchRepository:
+    return PostgresBatchRepository(session)
+
+
+TemplateRepoDep = Annotated[PostgresTemplateRepository, Depends(get_template_repository)]
+BatchRepoDep = Annotated[PostgresBatchRepository, Depends(get_batch_repository)]
+
+
+def get_render_engine() -> DocxtplRenderEngine:
+    return DocxtplRenderEngine()
+
+
+def get_excel_row_parser() -> OpenpyxlRowParser:
+    return OpenpyxlRowParser()
+
+
+def get_document_storage() -> S3DocumentStorage:
+    return S3DocumentStorage(
+        endpoint_url=settings.s3_endpoint_url,
+        access_key=settings.s3_access_key,
+        secret_key=settings.s3_secret_key,
+        bucket=settings.s3_bucket,
+    )
+
+
+def get_batch_dispatcher() -> CeleryBatchDispatcher:
+    return CeleryBatchDispatcher()
+
+
+RenderEngineDep = Annotated[DocxtplRenderEngine, Depends(get_render_engine)]
+ExcelRowParserDep = Annotated[OpenpyxlRowParser, Depends(get_excel_row_parser)]
+DocumentStorageDep = Annotated[S3DocumentStorage, Depends(get_document_storage)]
+BatchDispatcherDep = Annotated[CeleryBatchDispatcher, Depends(get_batch_dispatcher)]
 
 
 def get_password_hasher() -> Argon2PasswordHasher:
