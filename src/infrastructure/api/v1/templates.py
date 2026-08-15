@@ -53,6 +53,16 @@ async def list_templates(
     return [TemplateOut.from_domain(template) for template in templates]
 
 
+@router.get("/{template_id}", response_model=TemplateOut)
+async def get_template(
+    template_id: UUID, claims: CurrentClaimsDep, template_repository: TemplateRepoDep
+) -> TemplateOut:
+    template = await template_repository.get_by_id(template_id, claims.organization_id)
+    if template is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Template not found")
+    return TemplateOut.from_domain(template)
+
+
 @router.post(
     "/{template_id}/batches", response_model=BatchOut, status_code=status.HTTP_201_CREATED
 )

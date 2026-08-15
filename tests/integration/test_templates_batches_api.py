@@ -91,6 +91,35 @@ def test_upload_template_detects_placeholders(client: TestClient) -> None:
     assert set(template["placeholders"]) == {"arrendatario", "canon_mensual"}
 
 
+def test_get_template_returns_it_by_id(client: TestClient) -> None:
+    headers = _auth_headers(client, "Restrepo & Asociados", "ana@restrepo.co")
+    template = _upload_template(client, headers)
+
+    response = client.get(f"/api/v1/templates/{template['id']}", headers=headers)
+
+    assert response.status_code == 200
+    assert response.json() == template
+
+
+def test_get_template_is_scoped_per_organization(client: TestClient) -> None:
+    headers_a = _auth_headers(client, "Restrepo & Asociados", "ana@restrepo.co")
+    headers_b = _auth_headers(client, "Gomez Consultores", "bruno@gomez.co")
+    template = _upload_template(client, headers_a)
+
+    response = client.get(f"/api/v1/templates/{template['id']}", headers=headers_b)
+
+    assert response.status_code == 404
+
+
+def test_get_unknown_template_returns_404(client: TestClient) -> None:
+    headers = _auth_headers(client, "Restrepo & Asociados", "ana@restrepo.co")
+    fake_template_id = "00000000-0000-0000-0000-000000000000"
+
+    response = client.get(f"/api/v1/templates/{fake_template_id}", headers=headers)
+
+    assert response.status_code == 404
+
+
 def test_list_templates_is_scoped_per_organization(client: TestClient) -> None:
     headers_a = _auth_headers(client, "Restrepo & Asociados", "ana@restrepo.co")
     headers_b = _auth_headers(client, "Gomez Consultores", "bruno@gomez.co")
