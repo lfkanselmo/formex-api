@@ -22,18 +22,6 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 5
-      minio:
-        image: bitnami/minio:latest
-        env:
-          MINIO_ROOT_USER: formex
-          MINIO_ROOT_PASSWORD: formex123
-        ports:
-          - 9000:9000
-        options: >-
-          --health-cmd "curl -f http://localhost:9000/minio/health/live"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 5
       gotenberg:
         image: gotenberg/gotenberg:8
         ports:
@@ -63,6 +51,15 @@ jobs:
       - run: uv run ruff check .
       - run: uv run mypy src
       - run: uv run alembic upgrade head
+      - name: Start MinIO
+        run: |
+          docker run -d --name minio -p 9000:9000 \
+            -e MINIO_ROOT_USER=formex -e MINIO_ROOT_PASSWORD=formex123 \
+            minio/minio:latest server /data
+          for _ in $(seq 1 30); do
+            curl -sf http://localhost:9000/minio/health/live && break
+            sleep 1
+          done
       - name: Create MinIO bucket
         run: |
           docker run --rm --network host minio/mc:latest \
