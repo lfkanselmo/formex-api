@@ -7,7 +7,7 @@ from src.application.ports.batch_dispatcher import BatchDispatcherProtocol
 from src.application.ports.batch_repository import BatchRepositoryProtocol
 from src.application.ports.excel_row_parser import ExcelRowParserProtocol
 from src.application.ports.template_repository import TemplateRepositoryProtocol
-from src.domain.generation.exceptions import TemplateNotFoundError
+from src.domain.generation.exceptions import InvalidExcelFileError, TemplateNotFoundError
 from src.domain.generation.models import GeneratedDocument, GenerationBatch
 
 
@@ -31,7 +31,14 @@ class SubmitBatchUseCase:
         if template is None:
             raise TemplateNotFoundError(template_id)
 
-        rows = self._excel_parser.parse(excel_content)
+        try:
+            rows = self._excel_parser.parse(excel_content)
+        except Exception as error:
+            # Same reasoning as UploadTemplateUseCase: a malformed/non-xlsx
+            # upload fails inside openpyxl with a library-specific
+            # exception, normalized here to a domain error.
+            raise InvalidExcelFileError(str(error)) from error
+
         batch = GenerationBatch.create(
             organization_id=organization_id,
             template_id=template_id,

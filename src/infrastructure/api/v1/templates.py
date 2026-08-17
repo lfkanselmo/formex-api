@@ -4,7 +4,11 @@ from fastapi import APIRouter, HTTPException, UploadFile, status
 
 from src.application.use_cases.submit_batch import SubmitBatchUseCase
 from src.application.use_cases.upload_template import UploadTemplateUseCase
-from src.domain.generation.exceptions import TemplateNotFoundError
+from src.domain.generation.exceptions import (
+    InvalidExcelFileError,
+    InvalidTemplateFileError,
+    TemplateNotFoundError,
+)
 from src.infrastructure.api.dependencies import (
     BatchDispatcherDep,
     BatchRepoDep,
@@ -39,9 +43,12 @@ async def upload_template(
         )
 
     use_case = UploadTemplateUseCase(template_repository, storage, render_engine)
-    template = await use_case.execute(
-        claims.organization_id, file.filename or "plantilla.docx", content
-    )
+    try:
+        template = await use_case.execute(
+            claims.organization_id, file.filename or "plantilla.docx", content
+        )
+    except InvalidTemplateFileError as error:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(error)) from error
     return TemplateOut.from_domain(template)
 
 
@@ -90,4 +97,6 @@ async def submit_batch(
         batch = await use_case.execute(claims.organization_id, template_id, content)
     except TemplateNotFoundError as error:
         raise HTTPException(status.HTTP_404_NOT_FOUND, str(error)) from error
+    except InvalidExcelFileError as error:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(error)) from error
     return BatchOut.from_domain(batch)

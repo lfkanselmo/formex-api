@@ -3,7 +3,7 @@ from uuid import UUID, uuid4
 
 import pytest
 from src.application.use_cases.submit_batch import SubmitBatchUseCase
-from src.domain.generation.exceptions import TemplateNotFoundError
+from src.domain.generation.exceptions import InvalidExcelFileError, TemplateNotFoundError
 from src.domain.generation.models import (
     BatchStatus,
     DocumentStatus,
@@ -83,6 +83,11 @@ class FakeExcelRowParser:
         return self._rows
 
 
+class FailingExcelRowParser:
+    def parse(self, content: bytes) -> list[dict[str, str]]:
+        raise ValueError("File is not a zip file")
+
+
 class FakeDispatcher:
     def __init__(self) -> None:
         self.dispatched: tuple[UUID, UUID, list[int]] | None = None
@@ -160,3 +165,17 @@ async def test_execute_does_not_dispatch_when_every_row_is_invalid() -> None:
 
     assert batch.status is BatchStatus.FAILED
     assert dispatcher.dispatched is None
+
+
+async def test_execute_raises_invalid_excel_file_when_parser_rejects_it() -> None:
+    organization_id = uuid4()
+    template = _build_template(organization_id)
+    use_case = SubmitBatchUseCase(
+        FakeTemplateRepository(template),
+        FakeBatchRepository(),
+        FailingExcelRowParser(),
+        FakeDispatcher(),
+    )
+
+    with pytest.raises(InvalidExcelFileError):
+        await use_case.execute(organization_id, template.id, b"contenido-invalido")

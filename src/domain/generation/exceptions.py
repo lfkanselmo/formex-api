@@ -22,3 +22,13 @@ class BatchNotFoundError(DomainError):
 class DocumentNotFoundError(DomainError):
     def __init__(self, batch_id: object, row_index: int) -> None:
         super().__init__(f"Document not found: batch {batch_id}, row {row_index}")
+
+
+class InvalidTemplateFileError(DomainError):
+    def __init__(self, reason: str) -> None:
+        super().__init__(f"Invalid template file: {reason}")
+
+
+class InvalidExcelFileError(DomainError):
+    def __init__(self, reason: str) -> None:
+        super().__init__(f"Invalid Excel file: {reason}")

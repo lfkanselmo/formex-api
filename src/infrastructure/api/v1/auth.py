@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Request, status
 
 from src.application.ports.token_service import AccessTokenClaims
 from src.application.use_cases.login import LoginUseCase
@@ -16,6 +16,7 @@ from src.infrastructure.api.dependencies import (
     TokenServiceDep,
     UserRepoDep,
 )
+from src.infrastructure.api.rate_limiting import limiter
 from src.infrastructure.api.v1.auth_schemas import (
     AccessTokenOut,
     AuthTokensOut,
@@ -29,7 +30,9 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 @router.post("/register", response_model=AuthTokensOut, status_code=status.HTTP_201_CREATED)
+@limiter.limit("10/hour")
 async def register(
+    request: Request,
     payload: RegisterIn,
     organization_repository: OrganizationRepoDep,
     user_repository: UserRepoDep,
@@ -54,7 +57,9 @@ async def register(
 
 
 @router.post("/login", response_model=AuthTokensOut)
+@limiter.limit("20/minute")
 async def login(
+    request: Request,
     payload: LoginIn,
     user_repository: UserRepoDep,
     password_hasher: PasswordHasherDep,

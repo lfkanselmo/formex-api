@@ -1,6 +1,8 @@
 from uuid import UUID, uuid4
 
+import pytest
 from src.application.use_cases.upload_template import UploadTemplateUseCase
+from src.domain.generation.exceptions import InvalidTemplateFileError
 from src.domain.generation.models import Template
 
 
@@ -37,6 +39,14 @@ class FakeRenderEngine:
         return frozenset({"arrendatario", "fecha_inicio"})
 
 
+class FailingRenderEngine:
+    def render(self, template: bytes, context: dict[str, object]) -> bytes:
+        raise NotImplementedError
+
+    def detect_placeholders(self, template: bytes) -> frozenset[str]:
+        raise ValueError("File is not a zip file")
+
+
 async def test_execute_stores_content_and_creates_template_with_detected_placeholders() -> None:
     organization_id = uuid4()
     templates = FakeTemplateRepository()
@@ -50,3 +60,12 @@ async def test_execute_stores_content_and_creates_template_with_detected_placeho
     assert template.placeholders == ("arrendatario", "fecha_inicio")
     assert storage.saved[template.storage_key] == b"contenido-docx"
     assert templates.added == template
+
+
+async def test_execute_raises_invalid_template_file_when_render_engine_rejects_it() -> None:
+    use_case = UploadTemplateUseCase(
+        FakeTemplateRepository(), FakeDocumentStorage(), FailingRenderEngine()
+    )
+
+    with pytest.raises(InvalidTemplateFileError):
+        await use_case.execute(uuid4(), "no-es-un-docx.docx", b"contenido-invalido")

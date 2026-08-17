@@ -91,6 +91,31 @@ def test_upload_template_detects_placeholders(client: TestClient) -> None:
     assert set(template["placeholders"]) == {"arrendatario", "canon_mensual"}
 
 
+def test_upload_invalid_template_returns_422(client: TestClient) -> None:
+    headers = _auth_headers(client, "Restrepo & Asociados", "ana@restrepo.co")
+
+    response = client.post(
+        "/api/v1/templates",
+        headers=headers,
+        files={"file": ("no-es-un-docx.docx", b"esto no es un archivo docx real", "text/plain")},
+    )
+
+    assert response.status_code == 422
+
+
+def test_submit_batch_with_invalid_excel_returns_422(client: TestClient) -> None:
+    headers = _auth_headers(client, "Restrepo & Asociados", "ana@restrepo.co")
+    template = _upload_template(client, headers)
+
+    response = client.post(
+        f"/api/v1/templates/{template['id']}/batches",
+        headers=headers,
+        files={"file": ("no-es-un-excel.xlsx", b"esto no es un archivo xlsx real", "text/plain")},
+    )
+
+    assert response.status_code == 422
+
+
 def test_get_template_returns_it_by_id(client: TestClient) -> None:
     headers = _auth_headers(client, "Restrepo & Asociados", "ana@restrepo.co")
     template = _upload_template(client, headers)
