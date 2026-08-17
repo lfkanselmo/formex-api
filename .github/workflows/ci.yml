@@ -62,8 +62,8 @@ jobs:
           done
       - name: Create MinIO bucket
         run: |
-          docker run --rm --network host minio/mc:latest \
-            sh -c "mc alias set local http://localhost:9000 formex formex123 && mc mb -p local/formex"
+          docker run --rm --network host --entrypoint sh minio/mc:latest \
+            -c "mc alias set local http://localhost:9000 formex formex123 && mc mb -p local/formex"
       - run: uv run pytest
       - run: uv run pytest -m integration --no-cov
       - name: Build Docker image
