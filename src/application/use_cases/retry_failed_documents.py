@@ -30,7 +30,7 @@ class RetryFailedDocumentsUseCase:
         retried_indices: list[int] = []
         for document in failed_documents:
             retried = document.retry()
-            await self._batches.update_document(retried)
+            await self._batches.update_document(retried, organization_id)
             retried_indices.append(retried.row_index)
 
         updated_batch = batch.with_progress(

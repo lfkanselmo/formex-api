@@ -214,9 +214,38 @@ async def test_batch_repository_update_document_persists_completion(
     await batch_repo.add(batch, [document])
 
     completed = document.mark_completed("batches/x/0.pdf")
-    await batch_repo.update_document(completed)
+    await batch_repo.update_document(completed, organization.id)
 
     persisted = await batch_repo.get_document(batch.id, 0, organization.id)
     assert persisted is not None
     assert persisted.status is DocumentStatus.COMPLETED
     assert persisted.output_key == "batches/x/0.pdf"
+
+
+async def test_batch_repository_update_document_ignores_other_organization(
+    session: AsyncSession,
+) -> None:
+    organization = await _seed_organization(session)
+    other_organization = await _seed_organization(session)
+    template = Template.create(
+        organization_id=organization.id,
+        name="Contrato.docx",
+        storage_key="templates/contrato.docx",
+        placeholders=[],
+        created_at=_now(),
+    )
+    await PostgresTemplateRepository(session).add(template)
+
+    batch_repo = PostgresBatchRepository(session)
+    batch = GenerationBatch.create(
+        organization_id=organization.id, template_id=template.id, total_rows=1, created_at=_now()
+    )
+    document = GeneratedDocument.create(batch.id, 0, {})
+    await batch_repo.add(batch, [document])
+
+    completed = document.mark_completed("batches/x/0.pdf")
+    await batch_repo.update_document(completed, other_organization.id)
+
+    persisted = await batch_repo.get_document(batch.id, 0, organization.id)
+    assert persisted is not None
+    assert persisted.status is DocumentStatus.PENDING

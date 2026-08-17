@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
+from src.infrastructure.api.max_body_size_middleware import max_body_size_middleware
 from src.infrastructure.api.rate_limiting import limiter
 from src.infrastructure.api.v1.auth import router as auth_router
 from src.infrastructure.api.v1.batches import router as batches_router
@@ -26,6 +27,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.middleware("http")(max_body_size_middleware)
 
 app.include_router(health_router, prefix="/api/v1")
 app.include_router(auth_router, prefix="/api/v1")

@@ -18,12 +18,11 @@ from src.infrastructure.api.dependencies import (
     RenderEngineDep,
     TemplateRepoDep,
 )
+from src.infrastructure.api.upload_guards import MAX_UPLOAD_BYTES, UnsafeZipError, ensure_safe_zip
 from src.infrastructure.api.v1.batch_schemas import BatchOut
 from src.infrastructure.api.v1.template_schemas import TemplateOut
 
 router = APIRouter(prefix="/templates", tags=["templates"])
-
-MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 
 
 @router.post("", response_model=TemplateOut, status_code=status.HTTP_201_CREATED)
@@ -41,6 +40,10 @@ async def upload_template(
             status.HTTP_413_CONTENT_TOO_LARGE,
             f"El archivo supera el tamaño máximo permitido ({max_mb} MB)",
         )
+    try:
+        ensure_safe_zip(content)
+    except UnsafeZipError as error:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(error)) from error
 
     use_case = UploadTemplateUseCase(template_repository, storage, render_engine)
     try:
@@ -89,6 +92,10 @@ async def submit_batch(
             status.HTTP_413_CONTENT_TOO_LARGE,
             f"El archivo supera el tamaño máximo permitido ({max_mb} MB)",
         )
+    try:
+        ensure_safe_zip(content)
+    except UnsafeZipError as error:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(error)) from error
 
     use_case = SubmitBatchUseCase(
         template_repository, batch_repository, excel_row_parser, dispatcher

@@ -1,3 +1,4 @@
+import zipfile
 from collections.abc import AsyncIterator, Iterator
 from io import BytesIO
 
@@ -98,6 +99,22 @@ def test_upload_invalid_template_returns_422(client: TestClient) -> None:
         "/api/v1/templates",
         headers=headers,
         files={"file": ("no-es-un-docx.docx", b"esto no es un archivo docx real", "text/plain")},
+    )
+
+    assert response.status_code == 422
+
+
+def test_upload_template_with_a_zip_bomb_returns_422(client: TestClient) -> None:
+    headers = _auth_headers(client, "Restrepo & Asociados", "ana@restrepo.co")
+    buffer = BytesIO()
+    with zipfile.ZipFile(buffer, "w") as archive:
+        for index in range(1001):
+            archive.writestr(f"f{index}.txt", "x")
+
+    response = client.post(
+        "/api/v1/templates",
+        headers=headers,
+        files={"file": ("bomba.docx", buffer.getvalue(), "application/octet-stream")},
     )
 
     assert response.status_code == 422

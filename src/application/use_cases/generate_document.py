@@ -43,7 +43,7 @@ class GenerateDocumentUseCase:
             raise TemplateNotFoundError(batch.template_id)
 
         document = document.mark_processing()
-        await self._batches.update_document(document)
+        await self._batches.update_document(document, organization_id)
 
         try:
             template_bytes = await self._storage.load(template.storage_key)
@@ -58,4 +58,4 @@ class GenerateDocumentUseCase:
             # any failure here is captured and translated to domain state.
             document = document.mark_failed(str(error))
 
-        await self._batches.update_document(document)
+        await self._batches.update_document(document, organization_id)

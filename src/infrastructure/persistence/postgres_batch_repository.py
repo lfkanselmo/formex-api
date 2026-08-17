@@ -101,8 +101,19 @@ class PostgresBatchRepository:
         )
         return [_document_to_domain(row) for row in rows]
 
-    async def update_document(self, document: GeneratedDocument) -> None:
-        row = await self._session.get(GeneratedDocumentOrm, document.id)
+    async def update_document(
+        self, document: GeneratedDocument, organization_id: UUID
+    ) -> None:
+        row = (
+            await self._session.execute(
+                select(GeneratedDocumentOrm)
+                .join(GenerationBatchOrm, GeneratedDocumentOrm.batch_id == GenerationBatchOrm.id)
+                .where(
+                    GeneratedDocumentOrm.id == document.id,
+                    GenerationBatchOrm.organization_id == organization_id,
+                )
+            )
+        ).scalar_one_or_none()
         if row is None:
             return
         row.status = document.status.value

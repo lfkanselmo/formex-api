@@ -71,7 +71,7 @@ class FakeBatchRepository:
     ) -> list[GeneratedDocument]:
         raise NotImplementedError
 
-    async def update_document(self, document: GeneratedDocument) -> None:
+    async def update_document(self, document: GeneratedDocument, organization_id: UUID) -> None:
         raise NotImplementedError
 
 

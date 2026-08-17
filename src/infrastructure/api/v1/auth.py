@@ -74,7 +74,9 @@ async def login(
 
 
 @router.post("/refresh", response_model=AccessTokenOut)
+@limiter.limit("20/minute")
 async def refresh(
+    request: Request,
     payload: RefreshIn,
     user_repository: UserRepoDep,
     token_service: TokenServiceDep,

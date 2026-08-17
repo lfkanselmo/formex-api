@@ -89,7 +89,7 @@ class FakeBatchRepository:
     ) -> list[GeneratedDocument]:
         return [d for (b, _), d in self._documents.items() if b == batch_id]
 
-    async def update_document(self, document: GeneratedDocument) -> None:
+    async def update_document(self, document: GeneratedDocument, organization_id: UUID) -> None:
         self._documents[(document.batch_id, document.row_index)] = document
         self.updated_documents.append(document)
 
