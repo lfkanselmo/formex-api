@@ -7,16 +7,27 @@ ligero, multiusuario/multi-tenant desde el inicio. Ver
 [`SAD_Formex_Motor_Generacion_Documentos.md`](../SAD_Formex_Motor_Generacion_Documentos.md)
 para el diseño completo.
 
-Estado actual: **M7** — `GET /templates/{id}` (requerido por `formex-web`,
-que ya consume esta API completa: registro/login, subir plantilla, lanzar
-lote, progreso en vivo, reintento y descarga). Reintento de filas fallidas
-(`POST /batches/{id}/retry`) y descarga en ZIP (`GET /batches/{id}/download`)
-de M6. `formex-api` y su worker de Celery corren dockerizados
-(`docker/Dockerfile`) junto al resto de la infraestructura y la SPA — stack
-completo verificado de punta a punta vía `docker compose up`. M2-M5 (auth JWT
-multi-tenant, render + validación de Excel, PDF real vía Gotenberg + MinIO,
-paralelismo real por fila vía Celery) completos. 100% de cobertura en
-`src/domain`.
+Estado actual: **M8 (completo)** — hardening final, cerrado tras una revisión
+de arquitectura dedicada. Plantillas `.docx` y Excels `.xlsx` inválidos,
+corruptos o con un zip subyacente fuera de límites (miembros/tamaño
+descomprimido) se traducen a errores de dominio
+(`InvalidTemplateFileError`/`InvalidExcelFileError`, HTTP 422 con motivo) en
+vez de propagar una excepción de librería sin controlar; el límite de tamaño
+de subida se aplica por `Content-Length` en un middleware, antes de bufferear
+el cuerpo completo. `POST /auth/register` (10/hora), `POST /auth/login`
+(20/minuto) y `POST /auth/refresh` (20/minuto, sin autenticación) tienen rate
+limiting (`slowapi`). `update_document` del repositorio de lotes ahora exige
+`organization_id` y filtra por él, como el resto del repositorio (RNF-09).
+`GET /templates/{id}` (M7, requerido por `formex-web`, que ya consume esta
+API completa: registro/login, subir plantilla, lanzar lote, progreso en
+vivo, reintento y descarga). Reintento de filas fallidas (`POST
+/batches/{id}/retry`) y descarga en ZIP (`GET /batches/{id}/download`) de M6.
+`formex-api` y su worker de Celery corren dockerizados (`docker/Dockerfile`)
+junto al resto de la infraestructura y la SPA — stack completo verificado de
+punta a punta vía `docker compose up`. M2-M5 (auth JWT multi-tenant, render +
+validación de Excel, PDF real vía Gotenberg + MinIO, paralelismo real por
+fila vía Celery) completos. 100% de cobertura en `src/domain`, 116 tests
+(67 unitarios + 49 de integración) en verde.
 
 ## Levantar el stack completo con Docker
 
