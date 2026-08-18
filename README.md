@@ -1,7 +1,7 @@
 # Formex API
 
 [![CI](https://github.com/lfkanselmo/formex-api/actions/workflows/ci.yml/badge.svg)](https://github.com/lfkanselmo/formex-api/actions/workflows/ci.yml)
-![Python](https://img.shields.io/badge/python-3.12%2B-3776AB?logo=python&logoColor=white)
+![Python](https://img.shields.io/badge/python-3.14%2B-3776AB?logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-async-009688?logo=fastapi&logoColor=white)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)
 ![License](https://img.shields.io/badge/license-proprietary-lightgrey)
